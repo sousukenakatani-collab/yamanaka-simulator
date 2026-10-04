@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>サーバーコンサル山中シミュレーター</title>
+<style>
+:root{--bg:#f5f5f7;--side:#eeeef2;--purple:#5b5fc7;--text:#242424;--muted:#616161;--danger:#c4314b;--ok:#237b4b}
+*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text)}
+.app{height:100dvh;display:grid;grid-template-columns:70px 290px 1fr}
+.rail{background:#ebebf0;padding:14px 7px;text-align:center}.logo{font-weight:900;font-size:22px;color:#4f52b2;margin:6px 0 25px}
+.rail div.item{font-size:11px;padding:10px 2px;margin:4px 0;border-radius:7px}.rail .active{background:#dddde8;color:#4f52b2;font-weight:700}
+.side{background:#fafafa;border-right:1px solid #ddd;padding:18px 12px}.side h2{font-size:18px;margin:0 0 18px}.person{padding:12px;border-radius:8px;background:#e9e9f5;font-weight:700}
+.main{display:flex;flex-direction:column;min-width:0}.top{height:64px;background:white;border-bottom:1px solid #ddd;display:flex;align-items:center;padding:0 22px;gap:12px}
+.avatar{width:38px;height:38px;border-radius:50%;background:#222;color:white;display:grid;place-items:center;font-weight:900}.name{font-weight:800}.online{font-size:12px;color:#238636}
+.stats{display:flex;gap:10px;padding:10px 20px;background:#fff;border-bottom:1px solid #e2e2e2;flex-wrap:wrap}.stat{background:#f2f2f6;padding:7px 12px;border-radius:7px;font-size:13px}.stat b{font-size:16px}
+.chat{flex:1;overflow:auto;padding:20px max(18px,8vw);background:#f7f7f9}.msg{display:flex;gap:10px;margin:18px 0}.msg.me{justify-content:flex-end}.bubble{max-width:720px;background:white;border-radius:7px;padding:11px 13px;box-shadow:0 1px 2px #0001;line-height:1.55}.me .bubble{background:#e5e7ff}.who{font-weight:800;font-size:13px;margin-bottom:4px}.time{font-size:10px;color:#777;margin-top:5px}
+.file{margin:10px 20px;background:white;border:1px solid #ddd;padding:10px 13px;border-radius:7px;font-size:13px}
+.choices{padding:10px 20px 0;background:white;display:flex;gap:7px;overflow:auto}.choice{border:1px solid #c8c8d0;background:#fafafa;padding:9px 12px;border-radius:18px;white-space:nowrap;cursor:pointer;font-size:12px}
+.inputbar{background:white;padding:12px 20px calc(12px + env(safe-area-inset-bottom));display:flex;gap:8px;border-top:1px solid #eee}input{flex:1;padding:12px;border:1px solid #aaa;border-radius:6px;font-size:15px}button{background:var(--purple);color:white;border:0;border-radius:6px;padding:0 18px;font-weight:700}
+.intro{position:fixed;inset:0;background:#111d;color:white;display:grid;place-items:center;z-index:5;padding:30px}.card{max-width:650px;text-align:center}.card h1{font-size:36px;margin-bottom:12px}.card p{line-height:1.8;color:#ddd}.card button{padding:13px 24px;font-size:16px;margin-top:12px}
+.flash{animation:shake .22s 2}@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@media(max-width:720px){.app{grid-template-columns:1fr}.rail,.side{display:none}.chat{padding:12px}.top{height:58px;padding:0 12px}.stats{padding:7px 10px}.stat{padding:5px 8px}.choices{padding-left:10px}.inputbar{padding-left:10px;padding-right:10px}.card h1{font-size:28px}}
+</style>
+</head>
+<body>
+<div class="intro" id="intro"><div class="card">
+<h1>サーバーコンサル<br>山中シミュレーター</h1>
+<p>催事前日、22:30。<br>サーバー手配表に山中の既読がついた。<br><br>あなたは無事に明日の催事を迎えられるのか。</p>
+<button onclick="start()">チャットを開く</button>
+<p style="font-size:11px;margin-top:22px">※フィクション／パロディです。実在人物を想起させる場合も、発言・出来事は創作です。</p>
+</div></div>
+<div class="app">
+<div class="rail"><div class="logo">DB</div><div class="item active">●<br>チャット</div><div class="item">▦<br>催事</div><div class="item">▣<br>物流</div><div class="item">☎<br>通話</div></div>
+<div class="side"><h2>チャット</h2><div class="person">🔥 山中<br><small>サーバーコンサル</small></div></div>
+<div class="main">
+<div class="top"><div class="avatar">山</div><div><div class="name">山中（サーバーコンサル）</div><div class="online">● 連絡可能</div></div></div>
+<div class="stats"><div class="stat">メンタル <b id="mental">100</b></div><div class="stat">山中の信頼 <b id="trust">50</b></div><div class="stat">催事まで <b id="hours">10:30</b></div></div>
+<div class="file">📎 最新版　サーバー手配表_本当に最終版_v17.xlsx</div>
+<div class="chat" id="chat"></div>
+<div class="choices" id="choices"></div>
+<div class="inputbar"><input id="input" placeholder="新しいメッセージの入力" onkeydown="if(event.key==='Enter')sendFree()"><button onclick="sendFree()">送信</button></div>
+</div></div>
+<script>
+let mental=100,trust=50,mins=630,turn=0,started=false,timer;
+const scenarios=[
+ {q:"これ、誰が確認したんですか？\nサーバー台数とビール本数、合ってないですよね？",c:["申し訳ありません。すぐ確認します。","合っている認識です。","担当に確認してもらっています。"]},
+ {q:"『確認します』じゃないんですよ。\n明日ですよね？ 今まで何を確認してたんですか？",c:["私の確認不足です。10分で再確認します。","手配担当からの情報を転記しました。","一度整理して共有します。"]},
+ {q:"で、結局サーバー何台必要なんですか？\n聞いてることだけ答えてください。",c:["ダブル3台、シングル2台です。","少々お待ちください。","現状5台の想定です。"]},
+ {q:"『想定』って何ですか？\n確定してないものを明日の現場に送るんですか？",c:["確定数は5台です。配送も再確認します。","現場判断になると思います。","すみません、確認中です。"]},
+ {q:"配送先の住所、担当者、電話番号。全部言えます？\nまさかそこも確認中じゃないですよね？",c:["すべて手配表に記載済みです。再照合します。","住所は分かります。","物流担当が持っています。"]},
+ {q:"いや、あなたが把握してないなら管理になってないですよね。\n誰かが知ってる、じゃないんですよ。",c:["おっしゃる通りです。私が最終確認します。","そこまで私の担当でしょうか。","明朝確認でも間に合います。"]},
+ {q:"WOCへの出庫依頼は？ 何時に出したんですか？\nスクショじゃなくて事実で答えてください。",c:["本日15:20に依頼済み、受領確認済みです。","チャットには投げています。","たぶん対応済みです。"]},
+ {q:"『たぶん』で物流回してるんですか？\nそれでサーバー来なかったら誰が責任取るんです？",c:["私が今すぐ受領確認まで取ります。","山中さんにも確認いただけますか。","明日は予備機があります。"]},
+ {q:"予備機の話してないです。\n質問に答えてください。責任者は誰ですか？",c:["私です。最後まで確認します。","営業側だと思います。","責任者を確認します。"]},
+ {q:"じゃあ最後です。\nビール・サーバー・ガス・カップ・配送、全部チェックしたと言い切れますか？",c:["はい。全項目再確認済みです。","ほぼ大丈夫です。","朝もう一度確認します。"]}
+];
+function stamp(){let d=new Date();return d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}
+function add(text,me=false){let el=document.createElement('div');el.className='msg '+(me?'me':'');el.innerHTML=`<div class="bubble"><div class="who">${me?'あなた':'山中'}</div>${text.replace(/\n/g,'<br>')}<div class="time">${stamp()}</div></div>`;chat.appendChild(el);chat.scrollTop=chat.scrollHeight}
+function start(){intro.style.display='none';started=true;setTimeout(()=>ask(),500);timer=setInterval(()=>{if(started&&turn<scenarios.length){mins-=5;render();}},15000)}
+function ask(){if(mental<=0)return end("メンタルが尽きました。<br><b>BAD END：既読をつけたまま寝落ち</b>");if(turn>=scenarios.length)return ending();add(scenarios[turn].q);renderChoices();setTimeout(()=>{if(started&&turn<scenarios.length){add("……返信まだですか？");mental-=7;mins-=15;render();document.body.classList.add('flash');setTimeout(()=>document.body.classList.remove('flash'),500)}},22000)}
+function renderChoices(){choices.innerHTML='';scenarios[turn].c.forEach((x,i)=>{let b=document.createElement('div');b.className='choice';b.textContent=x;b.onclick=()=>reply(x,i);choices.appendChild(b)})}
+function reply(x,i){add(x,true);let good=i===0; mental-=good?4:(i===1?12:18);trust+=good?7:(i===1?-5:-10);mins-=good?10:20;turn++;choices.innerHTML='';render();setTimeout(ask,700)}
+function sendFree(){let v=input.value.trim();if(!v)return;input.value='';add(v,true);let weak=/たぶん|思います|確認中|担当|すみません/.test(v);mental-=weak?15:7;trust+=weak?-8:3;mins-=15;turn++;choices.innerHTML='';render();setTimeout(()=>{if(weak)add("いや、それ回答になってないですよ。曖昧な言い方やめてもらえます？");setTimeout(ask,500)},500)}
+function render(){mental=Math.max(0,mental);trust=Math.max(0,Math.min(100,trust));document.getElementById('mental').textContent=mental;document.getElementById('trust').textContent=trust;document.getElementById('hours').textContent=Math.floor(mins/60)+":"+String(mins%60).padStart(2,'0')}
+function ending(){started=false;clearInterval(timer);let s=trust>=80?"山中：……分かりました。そこまで確認できてるなら大丈夫です。明日お願いします。<br><br><b>GOOD END：山中、まさかの「大丈夫です」</b>":trust>=50?"山中：まあいいです。朝一でもう一回全部確認してください。<br><br><b>NORMAL END：催事開始には間に合った</b>":"山中：これ、この状態で明日やるんですか？ 一回全部止めましょう。<br><br><b>BAD END：サーバー手配、振り出しへ</b>";end(s)}
+function end(s){add(s);choices.innerHTML='<div class="choice" onclick="location.reload()">もう一度詰められる</div>'}
+</script>
+</body></html>
