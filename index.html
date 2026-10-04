@@ -1,62 +1,167 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8">
+<html lang="ja">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
-<title>サーバーコンサル山中シミュレーター</title>
+<meta name="googlebot" content="noindex,nofollow">
+<title>サーバーコンサル 山中シミュレーター</title>
 <style>
-*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;background:#f4f5f7;color:#202124;overflow:hidden}
-.app{height:100dvh;display:flex;flex-direction:column;max-width:820px;margin:auto;background:#f7f7f9;box-shadow:0 0 24px #0001}.top{background:#fff;border-bottom:1px solid #ddd;padding:10px 14px;display:flex;align-items:center;gap:10px}.avatar{width:40px;height:40px;border-radius:50%;background:#25262a;color:#fff;display:grid;place-items:center;font-weight:800}.name{font-weight:800}.sub{font-size:11px;color:#777;margin-top:2px}.stats{display:flex;gap:7px;padding:7px 10px;background:#fff;border-bottom:1px solid #e5e5e5;overflow:auto}.stat{font-size:12px;background:#f0f0f4;border-radius:8px;padding:6px 9px;white-space:nowrap}.case{font-size:11px;background:#fff8dc;border-bottom:1px solid #eadfa8;padding:7px 12px;color:#62551e}.chat{flex:1;overflow-y:auto;padding:14px 12px 22px;-webkit-overflow-scrolling:touch}.row{display:flex;margin:10px 0}.row.me{justify-content:flex-end}.bubble{max-width:82%;background:#fff;border-radius:11px;padding:10px 12px;line-height:1.55;font-size:14px;box-shadow:0 1px 2px #00000010;white-space:pre-wrap}.me .bubble{background:#dfe3ff}.who{font-size:11px;font-weight:800;margin-bottom:3px;color:#555}.time{font-size:9px;color:#999;text-align:right;margin-top:4px}.choices{display:flex;gap:7px;overflow-x:auto;padding:8px 10px;background:#fff;border-top:1px solid #eee}.choice{border:1px solid #bbb;background:#fafafa;padding:8px 11px;border-radius:18px;white-space:nowrap;font-size:12px;cursor:pointer}.inputbar{display:flex;gap:7px;background:#fff;padding:9px 10px calc(9px + env(safe-area-inset-bottom));border-top:1px solid #ddd}.inputbar input{flex:1;min-width:0;border:1px solid #aaa;border-radius:9px;padding:11px;font-size:16px}.inputbar button,.restart{border:0;background:#5559c7;color:#fff;border-radius:9px;padding:0 15px;font-weight:800}.end{margin:14px auto;padding:15px;background:#fff;border-radius:12px;text-align:center;max-width:92%;box-shadow:0 1px 4px #0001}.end button{padding:10px 16px;margin-top:8px}
-@media(min-width:721px){.bubble{max-width:68%}.chat{padding:20px 26px}.choices,.inputbar{padding-left:24px;padding-right:24px}}
-</style></head><body><div class="app">
-<div class="top"><div class="avatar">山</div><div><div class="name">🔥 山中（サーバーコンサル）</div><div class="sub">● 連絡可能　／　取引先チャット想定</div></div></div>
-<div class="stats"><div class="stat">メンタル <b id="mental">100</b></div><div class="stat">山中の信頼 <b id="trust">50</b></div><div class="stat">確認済 <b id="done">0</b>/7</div></div>
-<div class="case" id="casebar">📎 明日搬入：サーバー・ビール・ガス・配送情報の最終確認</div>
-<div class="chat" id="chat"></div><div class="choices" id="choices"></div>
-<div class="inputbar"><input id="inp" autocomplete="off" placeholder="返信を入力"><button onclick="freeReply()">送信</button></div>
-</div><script>
-const chat=document.getElementById('chat');
-const choices=document.getElementById('choices');
-const inp=document.getElementById('inp');
-let mental=100,trust=50,idx=0,answered={};
-const steps=[
- {id:'owner',q:`お世話になります。
-これ、誰が最終確認したんですか？
-サーバー台数とビール本数、数字が合ってないですよね。まず確認者を回答してください。`,chips:['私が確認しました。','担当者が確認しています。','確認して折り返します。']},
- {id:'server',q:`ではサーバーです。
-ダブル何台、シングル何台、合計何台ですか？
-「想定」じゃなく確定数で答えてください。`,chips:['ダブル3台、シングル2台、合計5台です。','5台の想定です。','担当に確認します。']},
- {id:'beer',q:`次。ビールは何本ですか？
-サーバー5台に対して、その本数で足りる根拠も一緒に答えてください。`,chips:['ビール30本です。5台×6本で算出しています。','30本くらいです。','本数は現場判断です。']},
- {id:'gas',q:`ガスは？
-本数と、交換用の予備を何本入れているか。数字で回答してください。`,chips:['使用分20本＋交換用10本、計30本です。','多めに入れています。','確認中です。']},
- {id:'dispatch',q:`WOCへの出庫依頼は何時に出しました？
-送信した時間じゃなく、先方の受領確認まで取れているかも答えてください。`,chips:['15:20依頼、15:32受領確認済みです。','チャットには送っています。','たぶん対応済みです。']},
- {id:'delivery',q:`搬入情報です。
-搬入時間、車両証、入館証、現場担当者、電話番号。全部確認済みですか？
-抜けがあるなら今ここで言ってください。`,chips:['5項目すべて確認済みです。','住所だけ確認済みです。','現場担当に任せています。']},
- {id:'final',q:`最終確認します。
-サーバー、ビール、ガス、備品、出庫、搬入条件、受領確認。
-全部問題ないと言い切れますか？`,chips:['はい。全項目、数量・手配・受領まで確認済みです。','ほぼ問題ありません。','明日の朝もう一度確認します。']}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;background:#f4f5f7;color:#222}
+.app{max-width:900px;height:100dvh;margin:auto;background:#f7f7f9;display:flex;flex-direction:column;border-left:1px solid #eee;border-right:1px solid #eee}
+.top{background:#fff;border-bottom:1px solid #ddd;padding:9px 14px;display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#24262b;color:#fff;font-weight:900}
+.title{font-weight:900;font-size:17px}.sub{font-size:11px;color:#666;margin-top:2px}
+.stats{background:#fff;padding:7px 12px;display:flex;gap:7px;flex-wrap:wrap;border-bottom:1px solid #ddd}
+.stat{font-size:12px;background:#f1f1f4;padding:6px 9px;border-radius:7px}
+.notice{font-size:11px;padding:8px 14px;background:#fff5d7;border-bottom:1px solid #ead79a}
+.chat{flex:1;overflow:auto;padding:14px 12px 24px}
+.row{display:flex;margin:11px 0}.mine{justify-content:flex-end}
+.bubble{max-width:78%;padding:10px 12px;border-radius:10px;background:#fff;box-shadow:0 1px 2px #00000012;line-height:1.55;font-size:14px;white-space:pre-wrap}
+.mine .bubble{background:#e5e7ff}.name{font-size:11px;font-weight:900;margin-bottom:3px}
+.yamanaka .name{color:#a13b22}.masaki .bubble{background:#fff7e7}.masaki .name{color:#7b5a13}
+.system{justify-content:center}.system .bubble{font-size:11px;color:#777;background:transparent;box-shadow:none;text-align:center}
+.choices{background:#fff;border-top:1px solid #eee;padding:8px 10px;display:flex;gap:7px;overflow-x:auto;min-height:48px}
+.choice{flex:0 0 auto;border:1px solid #c8c8d0;background:#fafafa;padding:9px 12px;border-radius:18px;font-size:12px;cursor:pointer;max-width:80vw;white-space:normal}
+.inputbar{background:#fff;border-top:1px solid #eee;padding:8px 10px calc(8px + env(safe-area-inset-bottom));display:flex;gap:7px}
+input{min-width:0;flex:1;padding:12px;border:1px solid #aaa;border-radius:9px;font-size:16px}
+button{border:0;border-radius:9px;background:#5962d8;color:#fff;font-weight:800;padding:0 16px}
+@media(min-width:700px){.bubble{font-size:15px}.chat{padding:18px 22px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><div class="avatar">山</div><div><div class="title">🔥 山中（サーバーコンサル）</div><div class="sub">● 連絡可能　／　取引先チャット想定</div></div></div>
+  <div class="stats">
+    <div class="stat">メンタル <b id="mental">100</b></div>
+    <div class="stat">山中の信頼 <b id="trust">50</b></div>
+    <div class="stat">確認済 <b id="done">0</b>/8</div>
+  </div>
+  <div class="notice">📎 明日搬入：サーバー・ビール・ガス・配送・入館情報の最終確認</div>
+  <div id="chat" class="chat"></div>
+  <div id="choices" class="choices"></div>
+  <div class="inputbar"><input id="input" placeholder="タッキーとして返信"><button id="send">送信</button></div>
+</div>
+<script>
+(function(){
+"use strict";
+var mental=100, trust=50, done=0, step=0, lastTopic="", masakiUsed=false;
+var chat=document.getElementById("chat"), choices=document.getElementById("choices"), input=document.getElementById("input");
+
+var topics=[
+ {key:"server", q:[
+  "タッキー、サーバー台数これで確定なんだよな？ ダブルとシングル、それぞれ何台か答えて。",
+  "タッキー、まずサーバー。『たぶん』はいらない。ダブル何台、シングル何台、合計何台？",
+  "この手配表、サーバーの数が読み取れない。タッキー、確定数だけ今ここで出して。"
+ ], opts:["ダブル3台、シングル2台、合計5台で確定です。","5台の認識です。","担当に確認します。"]},
+ {key:"beer", q:[
+  "次、ビール。本数と銘柄数は？ サーバー台数と組み合わせまで確認した？",
+  "サーバーだけ合ってても意味ないから。ビール何本、何銘柄、予備何本？",
+  "タッキー、ビール側の数字を出して。総本数と予備、本当に足りるんだよな？"
+ ], opts:["20本＋予備4本、計24本です。サーバー構成とも照合済みです。","20本くらいです。","そこは別担当です。"]},
+ {key:"gas", q:[
+  "ガスは？ 必要本数と予備まで数字で答えて。",
+  "次ガス。現場で切れたら終わるからな。使用分と予備、何本持たせる？",
+  "タッキー、ガスの在庫と持出数、照合済み？ 数字で。"
+ ], opts:["使用20本＋予備10本、計30本で確認済みです。","十分あると思います。","現場に任せます。"]},
+ {key:"shipping", q:[
+  "配送。どこの業者で、いつ出して、いつ着く。追跡まで取れてる？",
+  "タッキー、配送情報を一式。業者、出荷時刻、到着予定、追跡番号。",
+  "『発送済み』だけじゃ足りない。誰が受けるところまで確認してる？"
+ ], opts:["出荷済み、追跡確認済み、現場担当にも受取連携済みです。","チャットには投げています。","たぶん明日届きます。"]},
+ {key:"entry", q:[
+  "車両証と入館PASSは？ 楽テルにも現場共有にも無い、みたいな状態はやめてくれよ。",
+  "搬入条件確認する。車両証、入館証、搬入口、搬入時間。4点全部ある？",
+  "タッキー、現場着いてから『PASSありません』は無しな。入館情報どこまで確定してる？"
+ ], opts:["4点すべて取得済みで、現場にも共有済みです。","車両証だけあります。","施設担当が持っていると思います。"]},
+ {key:"contact", q:[
+  "配送先住所、現場担当者、電話番号。この3つは一致してる？",
+  "送り先情報もう一回。住所、受取人、電話番号。手配票と照合した？",
+  "タッキー、誤配送だけは勘弁して。配送先3点セット、確認済み？"
+ ], opts:["住所・担当者・電話番号、3点すべて照合済みです。","住所だけ確認しました。","前回と同じだと思います。"]},
+ {key:"cups", q:[
+  "カップと消耗品は？ サイズ別の必要数まで見た？",
+  "次、カップ。5oz、7oz、9oz、12oz、必要なもの全部数字出せる？",
+  "備品で止めるなよ。カップ、ストロー、交換部材まで確認した？"
+ ], opts:["必要サイズ・数量・予備まで確認済みです。","カップはあると思います。","そこまでは見てません。"]},
+ {key:"final", q:[
+  "最後。今言った内容、全部『確認した事実』として言い切れるな？",
+  "最終確認するぞ。サーバー、ビール、ガス、配送、入館、連絡先、備品。抜けは無いな？",
+  "タッキー、ここで終わらせる。明日の朝に宿題残してないな？"
+ ], opts:["はい。全項目、数量・手配・受領まで確認済みです。","ほぼ大丈夫です。","朝もう一度確認します。"]}
 ];
-function now(){return new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}
-function add(text,me=false){const r=document.createElement('div');r.className='row'+(me?' me':'');const b=document.createElement('div');b.className='bubble';if(!me){const w=document.createElement('div');w.className='who';w.textContent='山中';b.appendChild(w)}const tx=document.createElement('div');tx.textContent=text;b.appendChild(tx);const tm=document.createElement('div');tm.className='time';tm.textContent=now();b.appendChild(tm);r.appendChild(b);chat.appendChild(r);chat.scrollTop=chat.scrollHeight}
-function render(){if(idx>=steps.length){finish();return}const s=steps[idx];add(s.q);choices.innerHTML='';s.chips.forEach(x=>{const d=document.createElement('button');d.className='choice';d.textContent=x;d.onclick=()=>handle(x);choices.appendChild(d)})}
-function normalize(s){return s.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/\s/g,'')}
-function evaluate(step,raw){const s=normalize(raw);let ok=false,strong=false,reply='';
- if(step.id==='owner'){ok=/私|自分|中谷|有馬|滝沢|齊藤|担当.{0,4}(者|名)/.test(s)&&!/確認します|確認中/.test(s);reply=ok?'誰が確認したかは分かりました。じゃあ数字を詰めます。':'聞いているのは「誰が確認したか」です。確認します、じゃないです。確認者の名前か、自分が確認したのかを答えてください。'}
- if(step.id==='server'){ok=/ダブル.*\d+.*シングル.*\d+/.test(s)||(/5台/.test(s)&&!/想定|予定|くらい/.test(s));strong=/ダブル3台.*シングル2台|シングル2台.*ダブル3台/.test(s);reply=ok?'確定数ですね。そこは分かりました。次、ビール本数です。':'「想定」はいりません。確定か未確定かどっちですか。ダブル何台、シングル何台、合計何台。数字だけでもいいので答えてください。'}
- if(step.id==='beer'){ok=/\d+本/.test(s)&&(/×|x|算出|根拠|1台|台あたり|台で/.test(s));strong=/30本/.test(s)&&/6本/.test(s);reply=ok?'本数と根拠まで確認できました。次、ガスです。':'本数だけじゃなく根拠も聞いてます。サーバー台数に対して、なぜその本数なのか。そこまで回答してください。'}
- if(step.id==='gas'){const nums=s.match(/\d+本/g)||[];ok=nums.length>=2||(/計\d+本/.test(s)&&/予備|交換/.test(s));reply=ok?'使用分と予備、分けて確認できました。次、出庫です。':'「多め」は数量じゃないです。使用分何本、予備何本、合計何本。数字で答えてください。'}
- if(step.id==='dispatch'){ok=/\d{1,2}[:：]\d{2}/.test(raw)&&/受領|確認済|返信|了承/.test(s);reply=ok?'依頼時間と受領まで取れてるならいいです。次、搬入条件を確認します。':'送っただけで終わりじゃないです。何時に依頼して、相手が受けた確認まで取れてるのか。そこを答えてください。'}
- if(step.id==='delivery'){ok=/全て|すべて|5項目|確認済/.test(s)&&!/住所だけ|任せ/.test(s);reply=ok?'5項目確認済みですね。では最後です。':'それだと不足しています。搬入時間、車両証、入館証、担当者、電話番号。この5つ、未確認がどれなのか今ここで出してください。'}
- if(step.id==='final'){ok=/全項目|全部|すべて/.test(s)&&/確認済|問題ない|完了/.test(s)&&!/ほぼ|朝|予定|想定/.test(s);reply=ok?'……分かりました。そこまで確認できているなら進めてください。明日、現場で止まることだけはないようお願いします。':'「ほぼ」は何ですか。明日の仕事を明日の朝に残さないでください。未確認項目を今日中に潰して、確定情報で報告してください。'}
- return {ok,strong,reply}}
-function handle(text){add(text,true);choices.innerHTML='';const step=steps[idx],r=evaluate(step,text);if(r.ok){answered[step.id]=text;trust+=r.strong?8:6;mental-=3;setStats();setTimeout(()=>{add(r.reply);idx++;setTimeout(render,550)},350)}else{trust-=6;mental-=9;setStats();setTimeout(()=>{add(r.reply);renderChoices(step)},350)}}
-function renderChoices(step){choices.innerHTML='';step.chips.forEach(x=>{const d=document.createElement('button');d.className='choice';d.textContent=x;d.onclick=()=>handle(x);choices.appendChild(d)})}
-function freeReply(){const x=inp.value.trim();if(!x)return;inp.value='';handle(x)}
-function setStats(){mental=Math.max(0,mental);trust=Math.max(0,Math.min(100,trust));document.getElementById('mental').textContent=mental;document.getElementById('trust').textContent=trust;document.getElementById('done').textContent=Object.keys(answered).length}
-function finish(){choices.innerHTML='';const good=trust>=70;const box=document.createElement('div');box.className='end';box.innerHTML='<b>'+(good?'GOOD END：山中チェック突破':'CLEAR：最終確認完了')+'</b><br><small>確認済 '+Object.keys(answered).length+'/7　信頼 '+trust+'</small><br><button class="restart" onclick="location.reload()">もう一度</button>';chat.appendChild(box);chat.scrollTop=chat.scrollHeight}
-inp.addEventListener('keydown',e=>{if(e.key==='Enter')freeReply()});
-setTimeout(()=>{add(`お世話になります。Serverconsul山中です。
-明日の搬入分、こちらで確認したい点があります。`);setTimeout(render,550)},300);
-</script></body></html>
+
+var yBad=[
+ "『認識』じゃなくて確定情報で答えて。明日の現場だぞ。",
+ "それ、質問の答えになってない。結論と数字から。",
+ "担当に振って終わりにするな。タッキーが最後まで確認して。",
+ "曖昧だな。現場止まってからじゃ遅い。今ここで確定させて。",
+ "その回答で俺が『問題ない』って判断できると思う？ 具体的に。"
+];
+var yGood=[
+ "OK。そこまで確認できてるなら次いく。",
+ "よし。数字で答えれば早い。次。",
+ "了解。そこは確認済みとして進める。",
+ "それなら問題ない。次の項目確認するぞ。"
+];
+var masakiLines=[
+ "タッキー、すみません…。これ、もし明日現場で違ってたら困惑してしまいます。。念のためもう一度だけ確認してもらえますか？",
+ "横からすみません。。こちらとしても情報が途中で変わると少し困ってしまいます…。確定した内容だけ共有いただけると助かります。",
+ "すみません、僕も今見ているんですが…。この状態で現場に行くのはちょっと怖いですね。。タッキー、確定版ってどれになりますか？",
+ "あ、すみません。。僕の理解が違っていたら申し訳ないんですが、さっきの数字と今の数字、少し違いませんか…？"
+];
+
+function rnd(a){return a[Math.floor(Math.random()*a.length)]}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function add(name,text,kind){
+ var r=document.createElement("div"); r.className="row "+(kind==="me"?"mine":kind||"");
+ var b=document.createElement("div"); b.className="bubble";
+ if(name){var n=document.createElement("div");n.className="name";n.textContent=name;b.appendChild(n)}
+ var tx=document.createElement("div");tx.textContent=text;b.appendChild(tx);r.appendChild(b);chat.appendChild(r);
+ chat.scrollTop=chat.scrollHeight;
+}
+function stats(){document.getElementById("mental").textContent=Math.max(0,mental);document.getElementById("trust").textContent=Math.max(0,trust);document.getElementById("done").textContent=done}
+function show(){
+ if(step>=topics.length){finish();return}
+ var x=topics[step]; lastTopic=x.key; add("山中",rnd(x.q),"yamanaka"); choices.innerHTML="";
+ x.opts.forEach(function(o,i){var d=document.createElement("div");d.className="choice";d.textContent=o;d.onclick=function(){reply(o,i)};choices.appendChild(d)})
+}
+function maybeMasaki(){
+ if(step>=2 && step<=6 && Math.random()<0.38){
+   masakiUsed=true;
+   setTimeout(function(){add("マサキ",rnd(masakiLines),"masaki")},350);
+ }
+}
+function reply(text,index){
+ add("タッキー",text,"me"); choices.innerHTML="";
+ var good=index===0;
+ if(good){trust+=6;mental-=3;done++;setTimeout(function(){add("山中",rnd(yGood),"yamanaka");maybeMasaki();step++;setTimeout(show,850)},350)}
+ else{trust-=7;mental-=10;setTimeout(function(){add("山中",rnd(yBad),"yamanaka");maybeMasaki();setTimeout(function(){add("山中","もう一回答えて。今度は曖昧な言葉なしで。","yamanaka");showRetry()},650)},350)}
+ stats();
+}
+function showRetry(){
+ var x=topics[step];choices.innerHTML="";
+ var good=x.opts[0], alt="確認して、確定情報を今ここで回答します。";
+ [good,alt].forEach(function(o,i){var d=document.createElement("div");d.className="choice";d.textContent=o;d.onclick=function(){add("タッキー",o,"me");choices.innerHTML="";trust+=i===0?5:1;mental-=3;done++;stats();setTimeout(function(){add("山中",i===0?"最初からそう答えて。次。":"じゃあ確認終わったら確定情報で報告して。次いくぞ。","yamanaka");step++;setTimeout(show,650)},300)};choices.appendChild(d)})
+}
+function freeReply(){
+ var text=input.value.trim();if(!text)return;input.value="";add("タッキー",text,"me");choices.innerHTML="";
+ var s=text.replace(/\s/g,""), response,good=false;
+ if(/たぶん|思います|認識|担当|確認します|少々|わかりません/.test(s)){response=rnd(yBad);trust-=6;mental-=9}
+ else if(/\d|確認済|照合済|受領済|確定|完了/.test(s)){response=rnd(yGood);trust+=4;mental-=3;done++;good=true}
+ else{response="タッキー、説明を増やす前に俺が聞いたことに答えて。数字、時刻、確認状況。このどれかで。";trust-=4;mental-=6}
+ stats();setTimeout(function(){add("山中",response,"yamanaka");if(good){maybeMasaki();step++;setTimeout(show,750)}else{setTimeout(showRetry,500)}},350)
+}
+function finish(){
+ choices.innerHTML="";
+ if(trust>=70){add("山中","よし。そこまで全部確認できてるなら進めて。明日、現場で『聞いてません』は無しな。","yamanaka");setTimeout(function(){add("マサキ","確認ありがとうございます。。これなら大丈夫そうですね。僕も念のため共有だけ見ておきます。。","masaki")},450)}
+ else{add("山中","まだ不安が残る。タッキー、これで最終にするな。手配表と現場情報、もう一回全部突合してから出して。","yamanaka");setTimeout(function(){add("マサキ","すみません。。僕もちょっとこのままだと困惑してしまいます…。確定版になったら改めて共有お願いします。","masaki")},450)}
+}
+document.getElementById("send").onclick=freeReply;
+input.addEventListener("keydown",function(e){if(e.key==="Enter")freeReply()});
+setTimeout(function(){add("","― 催事前日。山中が手配表を確認しました ―","system");setTimeout(show,450)},250);
+})();
+</script>
+</body></html>
